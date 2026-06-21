@@ -1,0 +1,19 @@
+# Build / artefatos do Arduino-ESP32
+firmware/build/
+*.bin
+*.elf
+*.map
+*.hex
+*.o
+*.a
+
+# Spec Kit / ferramentas
+.specify/feature.json
+
+# Editores / SO
+.vscode/
+.idea/
+*.swp
+*.tmp
+.DS_Store
+Thumbs.db

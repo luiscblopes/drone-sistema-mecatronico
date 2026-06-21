@@ -1,0 +1,24 @@
+# ===== Artefatos de build (NÃO versionar) =====
+# ESP-IDF (Drone-main) — pasta build inteira (~107 MB de objetos/binários gerados)
+Drone-main/build/
+**/build/
+**/sdkconfig.old
+
+# Arduino / arduino-cli
+**/*.bin
+**/*.elf
+**/*.map
+**/*.hex
+**/*.o
+**/*.a
+
+# Spec Kit (estado local, não compartilhar)
+**/.specify/feature.json
+
+# Editores / SO
+.vscode/
+.idea/
+*.swp
+*.tmp
+.DS_Store
+Thumbs.db
