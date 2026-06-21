@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP32 Flight Controller — Sintonia de PID</title>
+<!--
+  Painel de controle (sintonia de PID) do projeto ESP32-Flight-controller.
+  Representa o "controle" que o firmware de teste
+  (test/anglemode_flightcontroller_ver3.1_PID_values_tuning_webserver) expoe por Wi-Fi.
+
+  COMPATIVEL (drop-in) com aquele firmware:
+   - cada campo salva via  GET /get?<param>=<valor>  (um parametro por requisicao);
+   - os tokens %pGain% ... %tc% sao preenchidos pelo 'processor' do firmware com o
+     valor atual lido do SPIFFS (so quando esta pagina e SERVIDA pelo ESP).
+  Parametros: pGain,iGain,dGain (taxa R/P) | pAGain,iAGain,dAGain (angulo R/P)
+              pYaw,iYaw,dYaw (yaw) | tc (tempo de ciclo).
+
+  Aplicar no voo: o firmware so RECARREGA os valores salvos quando o canal 5 do
+  radio (CH5/gear) passa de 1500. Antes disso, salvar so grava no SPIFFS.
+-->
+<style>
+  :root{
+    --bg:#0e1116; --card:#171c24; --line:#262d38; --txt:#e6edf3; --mut:#8b97a7;
+    --acc:#3fa7ff; --ok:#2ecc71; --warn:#ffb020; --danger:#ff4d4f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;line-height:1.4}
+  header{padding:18px 16px;border-bottom:1px solid var(--line);
+         display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+  header h1{font-size:18px;margin:0;flex:1 1 auto}
+  .badge{font-size:12px;color:var(--mut);border:1px solid var(--line);
+         border-radius:999px;padding:3px 10px}
+  main{max-width:920px;margin:0 auto;padding:16px}
+  .warn{background:#2a1d05;border:1px solid var(--warn);color:#ffd98a;
+        border-radius:10px;padding:10px 14px;margin:0 0 16px;font-size:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h2{font-size:14px;margin:0 0 4px;letter-spacing:.3px}
+  .card p.sub{font-size:12px;color:var(--mut);margin:0 0 14px}
+  .row{display:flex;align-items:center;gap:10px;margin:10px 0}
+  .row label{flex:0 0 92px;font-size:13px;color:var(--mut)}
+  .row .cur{flex:0 0 70px;font-size:13px;color:var(--txt);text-align:right;
+            font-variant-numeric:tabular-nums}
+  .row input{flex:1 1 auto;width:100%;background:#0d1117;border:1px solid var(--line);
+             color:var(--txt);border-radius:8px;padding:8px 10px;font-size:14px}
+  .row input:focus{outline:none;border-color:var(--acc)}
+  .row button{flex:0 0 auto;background:#0d1117;border:1px solid var(--line);
+              color:var(--acc);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px}
+  .row button:hover{border-color:var(--acc)}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:18px 0 8px}
+  .bar .ip{flex:1 1 220px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+  .bar .ip input{flex:1 1 auto;background:#0d1117;border:1px solid var(--line);
+                 color:var(--txt);border-radius:8px;padding:8px 10px}
+  .btn{border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer}
+  .btn.primary{background:var(--acc);color:#04121f}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  #status{font-size:13px;color:var(--mut);margin-left:auto}
+  footer{max-width:920px;margin:0 auto;padding:8px 16px 28px;color:var(--mut);font-size:12px}
+  code{background:#0d1117;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>ESP32 Flight Controller — Sintonia de PID</h1>
+  <span class="badge">angle-mode · 250 Hz</span>
+  <span class="badge">drop-in <code>/get</code></span>
+</header>
+
+<main>
+  <div class="warn">
+    ⚠️ <b>SEM HÉLICES.</b> Sintonize na bancada. Os valores salvos só são <b>aplicados em voo
+    quando o canal 5 do rádio (CH5/gear) passa de 1500</b> — antes disso, "Salvar" apenas grava
+    no SPIFFS do ESP32.
+  </div>
+
+  <div class="grid">
+    <!-- TAXA (rate) Roll/Pitch -->
+    <section class="card">
+      <h2>Taxa — Roll &amp; Pitch</h2>
+      <p class="sub">Malha interna (gyro). Ref.: P 0.625 · I 2.1 · D 0.008</p>
+      <div class="row"><label>P</label><span class="cur" id="cur-pGain">%pGain%</span>
+        <input id="pGain" type="number" step="any" placeholder="0.625"><button data-k="pGain">Salvar</button></div>
+      <div class="row"><label>I</label><span class="cur" id="cur-iGain">%iGain%</span>
+        <input id="iGain" type="number" step="any" placeholder="2.1"><button data-k="iGain">Salvar</button></div>
+      <div class="row"><label>D</label><span class="cur" id="cur-dGain">%dGain%</span>
+        <input id="dGain" type="number" step="any" placeholder="0.008"><button data-k="dGain">Salvar</button></div>
+    </section>
+
+    <!-- ANGULO (angle) Roll/Pitch -->
+    <section class="card">
+      <h2>Ângulo — Roll &amp; Pitch</h2>
+      <p class="sub">Malha externa (atitude). Ref.: P 2 · I 0 · D 0.007</p>
+      <div class="row"><label>P</label><span class="cur" id="cur-pAGain">%pAGain%</span>
+        <input id="pAGain" type="number" step="any" placeholder="2"><button data-k="pAGain">Salvar</button></div>
+      <div class="row"><label>I</label><span class="cur" id="cur-iAGain">%iAGain%</span>
+        <input id="iAGain" type="number" step="any" placeholder="0"><button data-k="iAGain">Salvar</button></div>
+      <div class="row"><label>D</label><span class="cur" id="cur-dAGain">%dAGain%</span>
+        <input id="dAGain" type="number" step="any" placeholder="0.007"><button data-k="dAGain">Salvar</button></div>
+    </section>
+
+    <!-- YAW -->
+    <section class="card">
+      <h2>Yaw (taxa)</h2>
+      <p class="sub">Eixo de guinada. Ref.: P 4 · I 3 · D 0</p>
+      <div class="row"><label>P</label><span class="cur" id="cur-pYaw">%pYaw%</span>
+        <input id="pYaw" type="number" step="any" placeholder="4"><button data-k="pYaw">Salvar</button></div>
+      <div class="row"><label>I</label><span class="cur" id="cur-iYaw">%iYaw%</span>
+        <input id="iYaw" type="number" step="any" placeholder="3"><button data-k="iYaw">Salvar</button></div>
+      <div class="row"><label>D</label><span class="cur" id="cur-dYaw">%dYaw%</span>
+        <input id="dYaw" type="number" step="any" placeholder="0"><button data-k="dYaw">Salvar</button></div>
+    </section>
+
+    <!-- TEMPO DE CICLO -->
+    <section class="card">
+      <h2>Tempo de ciclo</h2>
+      <p class="sub">Passo do laço (s). Ref.: 0.004 (= 250 Hz). Altera I e D!</p>
+      <div class="row"><label>t (s)</label><span class="cur" id="cur-tc">%tc%</span>
+        <input id="tc" type="number" step="any" placeholder="0.004"><button data-k="tc">Salvar</button></div>
+    </section>
+  </div>
+
+  <div class="bar">
+    <div class="ip">
+      <span>ESP (modo standalone):</span>
+      <input id="host" placeholder="ex.: 192.168.0.42 (deixe vazio se servido pelo ESP)">
+    </div>
+    <button class="btn primary" id="saveAll">Salvar todos</button>
+    <button class="btn ghost" id="reload">Recarregar valores</button>
+    <span id="status">pronto</span>
+  </div>
+</main>
+
+<footer>
+  Endpoints: <code>GET /get?pGain=…</code> (um parâmetro por requisição), conforme o firmware
+  <code>..._PID_values_tuning_webserver.ino</code>. Quando esta página é <b>servida pelo ESP</b>,
+  os valores atuais aparecem automaticamente; em modo standalone, informe o IP do ESP acima.
+</footer>
+
+<script>
+  // Lista de parametros, na mesma nomenclatura dos endpoints do firmware.
+  const FIELDS = ['pGain','iGain','dGain','pAGain','iAGain','dAGain','pYaw','iYaw','dYaw','tc'];
+
+  const $ = id => document.getElementById(id);
+  const status = msg => { $('status').textContent = msg; };
+
+  // Base da URL: vazio quando a pagina e servida pelo ESP (mesma origem);
+  // senao usa o IP informado (modo standalone / preview).
+  function base(){
+    const h = $('host').value.trim();
+    return h ? ('http://' + h.replace(/^https?:\/\//,'').replace(/\/$/,'')) : '';
+  }
+
+  // Mostra os valores atuais. Se o token %param% NAO foi substituido pelo firmware
+  // (ou seja, a pagina foi aberta standalone), exibe "—".
+  function normalizeCurrent(){
+    FIELDS.forEach(k => {
+      const el = $('cur-' + k);
+      if (el && /^%.*%$/.test(el.textContent.trim())) el.textContent = '—';
+    });
+  }
+
+  // Salva UM parametro (uma requisicao GET, como o firmware espera).
+  async function saveOne(k){
+    const v = $(k).value.trim();
+    if (v === '') { status('campo "' + k + '" vazio'); return false; }
+    try{
+      status('salvando ' + k + '…');
+      await fetch(base() + '/get?' + k + '=' + encodeURIComponent(v), {mode:'no-cors'});
+      $('cur-' + k).textContent = v;     // reflete o novo valor na UI
+      $(k).value = '';
+      status('✔ ' + k + ' salvo');
+      return true;
+    }catch(e){
+      status('✖ falha ao salvar ' + k + ' (confira o IP/conexão)');
+      return false;
+    }
+  }
+
+  // Salva todos os campos preenchidos, em sequencia (o firmware aceita 1 por vez).
+  async function saveAll(){
+    let n = 0;
+    for (const k of FIELDS){ if ($(k).value.trim() !== '' && await saveOne(k)) n++; }
+    status(n ? ('✔ ' + n + ' parâmetro(s) salvo(s). Ligue CH5>1500 para aplicar no voo.')
+             : 'nenhum campo preenchido');
+  }
+
+  // Botoes "Salvar" por linha.
+  document.querySelectorAll('button[data-k]').forEach(b =>
+    b.addEventListener('click', () => saveOne(b.dataset.k)));
+  $('saveAll').addEventListener('click', saveAll);
+  // "Recarregar" so funciona quando servido pelo ESP (recarrega o HTML com %tokens% preenchidos).
+  $('reload').addEventListener('click', () => location.reload());
+
+  normalizeCurrent();
+</script>
+</body>
+</html>
