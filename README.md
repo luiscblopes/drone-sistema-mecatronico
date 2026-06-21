@@ -114,20 +114,112 @@ Conecte ao Wi-Fi `EQUIPE4-AP` e abra `http://192.168.4.1`. Rotas principais:
 
 ---
 
-## Como compilar e gravar (`Junção`)
+## O console web (HTML) — onde está e como funciona
 
-Requer **arduino-cli** com o core `esp32:esp32` e a lib **ESP32Servo**:
+Tudo roda num **único ESP32**. O console web fica na pasta do firmware:
 
+- [`Junção/firmware/index.html`](./Junção/firmware/index.html) — a página de controle (fonte legível).
+- [`Junção/firmware/index_html.h`](./Junção/firmware/index_html.h) — **o mesmo HTML embutido em PROGMEM**; é este arquivo que entra no binário e é servido em `GET /`.
+
+> **Importante:** o HTML **não é enviado separado** para o ESP32 — ele é **compilado dentro do
+> firmware**. Você grava **um arquivo só** (o firmware) e o console já está dentro. Não precisa de
+> SPIFFS/LittleFS nem de segundo upload.
+>
+> **Se você editar `index.html`, precisa regerar `index_html.h`** (PowerShell, na pasta `firmware`):
+> ```powershell
+> $h = Get-Content index.html -Raw -Encoding UTF8
+> $out = "#ifndef INDEX_HTML_H`n#define INDEX_HTML_H`n#include <pgmspace.h>`n`nconst char index_html[] PROGMEM = R`"JUNCAO_HTML(`n" + $h + "`n)JUNCAO_HTML`";`n`n#endif`n"
+> Set-Content index_html.h -Value $out -Encoding UTF8
+> ```
+
+---
+
+## Como gravar em um único ESP32 — passo a passo completo
+
+Todo o sistema (controle de voo + Wi-Fi + console web) roda em **um único ESP32**. Não há
+"mestre/escravo" nem segundo microcontrolador.
+
+### Passo 0 — Hardware (montagem, SEM HÉLICES)
+
+| Ligação | Pino ESP32 | Para |
+|---|---|---|
+| Motor M1 | **GPIO 25** | sinal do ESC 1 (frente-esquerda) |
+| Motor M2 | **GPIO 26** | sinal do ESC 2 (frente-direita) |
+| Motor M3 | **GPIO 27** | sinal do ESC 3 (traseira-direita) |
+| Motor M4 | **GPIO 14** | sinal do ESC 4 (traseira-esquerda) |
+| IMU SDA | **GPIO 21** | SDA do MPU-9250 |
+| IMU SCL | **GPIO 22** | SCL do MPU-9250 |
+| IMU VCC/GND | 3V3 / GND | alimentação da IMU |
+| GND comum | GND | **GND do ESP32, dos ESCs e da IMU juntos** |
+
+> ⚠️ **Hélices removidas.** Alimente os ESCs pela bateria/fonte de bancada; o ESP32 pela USB.
+
+### Passo 1 — Instalar a ferramenta (uma vez)
+
+Opção A — **arduino-cli** (linha de comando, recomendado):
 ```bash
+# instalar o core ESP32 e a unica biblioteca externa
+arduino-cli core update-index
 arduino-cli core install esp32:esp32
 arduino-cli lib install "ESP32Servo"
+```
 
+Opção B — **Arduino IDE**: em *Preferências* adicione a URL de placas ESP32
+`https://espressif.github.io/arduino-esp32/package_esp32_index.json`, instale "esp32" em
+*Gerenciador de Placas*, e a lib **ESP32Servo** em *Gerenciador de Bibliotecas*. Abra
+`Junção/firmware/firmware.ino` (os demais `.cpp/.h` viram abas automaticamente).
+
+### Passo 2 — Descobrir a porta do ESP32
+
+Conecte o ESP32 por USB e:
+```bash
+arduino-cli board list
+```
+Anote a porta (ex.: Windows `COM5`, Linux `/dev/ttyUSB0`, macOS `/dev/cu.SLAB_USBtoUART`).
+
+### Passo 3 — Compilar e gravar (um único comando cada)
+
+```bash
 cd Junção/firmware
 arduino-cli compile --fqbn esp32:esp32:esp32 .
 arduino-cli upload  --fqbn esp32:esp32:esp32 -p <PORTA> .
 ```
+> Se a gravação não iniciar, segure o botão **BOOT** do ESP32 ao começar o upload.
 
-Detalhes em [`Junção/firmware/README.md`](./Junção/firmware/README.md).
+Para ver os logs de boot (opcional):
+```bash
+arduino-cli monitor -p <PORTA> -c baudrate=115200
+```
+Deve aparecer: `IMU MPU-9250 detectada (0x68)` e `Conecte ao AP e abra http://192.168.4.1`.
+
+### Passo 4 — Conectar e abrir o console
+
+1. No celular/PC, conecte na rede Wi-Fi **`EQUIPE4-AP`** (senha **`12345678`**).
+2. Abra o navegador em **`http://192.168.4.1`**.
+3. O console (o `index.html` embutido) carrega — telemetria, setpoints e calibração.
+
+> 📱 No celular, ao conectar numa rede **sem internet**, escolha **"manter conexão"** (e/ou
+> desligue os dados móveis), senão o Android/iOS pode não abrir a página.
+
+### Passo 5 — Validar na bancada (OBRIGATÓRIO, SEM HÉLICES)
+
+Antes de qualquer voo, siga **todo** o roteiro de
+[`Junção/specs/001-firmware-juncao-voo/quickstart.md`](./Junção/specs/001-firmware-juncao-voo/quickstart.md):
+boot/saúde → IMU nivelada (±2°) → deadband por motor → motor individual (pino e sentido) →
+resposta da malha (mixagem motor-a-motor) → failsafes → calibração. Só depois disso: hélices,
+ao ar livre, com extrema cautela.
+
+### Resolução de problemas
+
+| Sintoma | Provável causa / o que fazer |
+|---|---|
+| `IMU nao respondeu` no serial | Conferir fiação I2C (21/22), 3V3/GND da IMU, endereço 0x68 |
+| ESC apita e não arma | Conferir alimentação dos ESCs; a frequência já é 250 Hz (correta p/ esta placa) |
+| Página não abre no celular | "Manter conexão" na rede sem internet; tentar `http://192.168.4.1` (não https) |
+| Upload falha | Segurar **BOOT** ao iniciar; conferir a `<PORTA>`; fechar o monitor serial antes |
+| Motor errado gira | É esperado descobrir na bancada (passo 4/5 do quickstart) — ajustar mixagem/fiação |
+
+Detalhes adicionais em [`Junção/firmware/README.md`](./Junção/firmware/README.md).
 
 ---
 
