@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagrama de interligação — Junção (ESP32)</title>
+<!--
+  Diagrama de ligacao completa do firmware OFICIAL (Junção), na placa do Drone-main.
+  Pinos (config.h): motores GPIO 25/26/27/14 ; I2C SDA 21 / SCL 22 ; ESC 1000-2000 us @ 250 Hz.
+  Comando por Wi-Fi (AP EQUIPE4-AP, 192.168.4.1). SEM HÉLICES em toda a verificacao.
+-->
+<style>
+  body{margin:0;background:#0e1116;color:#e6edf3;
+       font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  header{padding:16px;border-bottom:1px solid #262d38}
+  header h1{margin:0;font-size:18px}
+  header p{margin:4px 0 0;color:#8b97a7;font-size:13px}
+  .wrap{max-width:1220px;margin:0 auto;padding:14px}
+  svg{width:100%;height:auto;background:#0c0f14;border:1px solid #262d38;border-radius:12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:14px}
+  .card{background:#171c24;border:1px solid #262d38;border-radius:12px;padding:12px 14px;font-size:13px}
+  .card h3{margin:0 0 8px;font-size:13px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  td,th{border-bottom:1px solid #262d38;padding:4px 6px;text-align:left}
+  .warn{background:#2a1d05;border:1px solid #ffb020;color:#ffd98a;border-radius:10px;
+        padding:10px 14px;margin-top:14px;font-size:13px}
+  .leg{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12.5px;color:#b9c2cf}
+  .leg span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:22px;height:0;border-top-width:4px;border-top-style:solid;display:inline-block}
+</style>
+</head>
+<body>
+<header>
+  <h1>Diagrama de interligação — Firmware Junção (ESP32)</h1>
+  <p>Sistema oficial: 1× ESP32 · IMU MPU-9250 (I2C) · 4× ESC/Motor · comando por Wi-Fi · SEM HÉLICES</p>
+</header>
+
+<div class="wrap">
+<svg viewBox="0 0 1200 720" role="img" aria-label="Diagrama de ligação do sistema">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#7ee787"/>
+    </marker>
+    <style>
+      .box{fill:#171c24;stroke:#3a4456;stroke-width:1.5;rx:10}
+      .chip{fill:#10233a;stroke:#3fa7ff;stroke-width:2}
+      .lbl{fill:#e6edf3;font:600 13px system-ui;}
+      .sub{fill:#8b97a7;font:11px system-ui;}
+      .pin{fill:#0d1117;stroke:#3a4456;stroke-width:1}
+      .pintxt{fill:#cdd6e0;font:11px ui-monospace,Consolas,monospace;}
+      .w-i2c{stroke:#3fa7ff;stroke-width:2.4;fill:none}
+      .w-sig{stroke:#ff9f40;stroke-width:2.4;fill:none}
+      .w-vp{stroke:#ff5d5d;stroke-width:3.4;fill:none}
+      .w-gnd{stroke:#9aa4b2;stroke-width:3.4;fill:none}
+      .w-wifi{stroke:#7ee787;stroke-width:2;fill:none;stroke-dasharray:6 5}
+      .mt{fill:#1b2330;stroke:#3a4456;stroke-width:1.5}
+    </style>
+  </defs>
+
+  <!-- ===================== IMU (topo) ===================== -->
+  <rect class="box chip" x="470" y="40" width="230" height="92" rx="10"/>
+  <text class="lbl" x="585" y="66" text-anchor="middle">IMU MPU-9250</text>
+  <text class="sub" x="585" y="84" text-anchor="middle">I2C 0x68 · accel+gyro</text>
+  <!-- pads inferiores da IMU -->
+  <text class="pintxt" x="505" y="120" text-anchor="middle">VCC</text>
+  <text class="pintxt" x="558" y="120" text-anchor="middle">GND</text>
+  <text class="pintxt" x="612" y="120" text-anchor="middle">SDA</text>
+  <text class="pintxt" x="665" y="120" text-anchor="middle">SCL</text>
+
+  <!-- ===================== ESP32 (centro) ===================== -->
+  <rect class="box chip" x="455" y="300" width="260" height="270" rx="12"/>
+  <text class="lbl" x="585" y="330" text-anchor="middle">ESP32</text>
+  <text class="sub" x="585" y="348" text-anchor="middle">placa do Drone-main</text>
+  <text class="sub" x="585" y="455" text-anchor="middle" style="fill:#7ee787">Wi-Fi AP</text>
+  <text class="sub" x="585" y="471" text-anchor="middle">controle 250 Hz (core 1)</text>
+  <text class="sub" x="585" y="487" text-anchor="middle">web server (core 0)</text>
+
+  <!-- pinos topo (I2C + alimentacao da IMU) -->
+  <g>
+    <rect class="pin" x="492" y="294" width="26" height="12"/><text class="pintxt" x="505" y="289" text-anchor="middle">3V3</text>
+    <rect class="pin" x="545" y="294" width="26" height="12"/><text class="pintxt" x="558" y="289" text-anchor="middle">GND</text>
+    <rect class="pin" x="598" y="294" width="30" height="12"/><text class="pintxt" x="613" y="289" text-anchor="middle">21</text>
+    <rect class="pin" x="651" y="294" width="30" height="12"/><text class="pintxt" x="666" y="289" text-anchor="middle">22</text>
+  </g>
+  <!-- pinos direita (motores) -->
+  <g>
+    <rect class="pin" x="715" y="360" width="34" height="14"/><text class="pintxt" x="732" y="356" text-anchor="middle">G25</text>
+    <rect class="pin" x="715" y="410" width="34" height="14"/><text class="pintxt" x="732" y="406" text-anchor="middle">G26</text>
+    <rect class="pin" x="715" y="460" width="34" height="14"/><text class="pintxt" x="732" y="456" text-anchor="middle">G27</text>
+    <rect class="pin" x="715" y="510" width="34" height="14"/><text class="pintxt" x="732" y="506" text-anchor="middle">G14</text>
+  </g>
+  <!-- pino baixo (alimentacao) -->
+  <rect class="pin" x="500" y="564" width="40" height="14"/><text class="pintxt" x="520" y="589" text-anchor="middle">5V/USB</text>
+  <rect class="pin" x="630" y="564" width="40" height="14"/><text class="pintxt" x="650" y="589" text-anchor="middle">GND</text>
+
+  <!-- ===================== fios I2C (ESP32 topo -> IMU) ===================== -->
+  <path class="w-vp"  d="M505,294 L505,124"/>            <!-- 3V3 -> VCC -->
+  <path class="w-gnd" d="M558,294 L558,124"/>            <!-- GND -> GND -->
+  <path class="w-i2c" d="M613,294 L612,124"/>            <!-- 21 SDA -->
+  <path class="w-i2c" d="M666,294 L665,124"/>            <!-- 22 SCL -->
+  <text class="sub" x="690" y="210" style="fill:#3fa7ff">I2C 400 kHz</text>
+
+  <!-- ===================== ESCs + Motores (direita) ===================== -->
+  <!-- helper visual: cada bloco ESC -> circulo Motor -->
+  <!-- M1 -->
+  <rect class="box" x="820" y="345" width="120" height="44" rx="8"/>
+  <text class="lbl" x="880" y="365" text-anchor="middle">ESC 1</text>
+  <text class="sub" x="880" y="380" text-anchor="middle">1000–2000 µs · 250 Hz</text>
+  <circle class="mt" cx="1010" cy="367" r="26"/><text class="lbl" x="1010" y="364" text-anchor="middle">M1</text><text class="sub" x="1010" y="378" text-anchor="middle">fr-esq</text>
+  <!-- M2 -->
+  <rect class="box" x="820" y="402" width="120" height="44" rx="8"/>
+  <text class="lbl" x="880" y="422" text-anchor="middle">ESC 2</text>
+  <text class="sub" x="880" y="437" text-anchor="middle">1000–2000 µs · 250 Hz</text>
+  <circle class="mt" cx="1010" cy="424" r="26"/><text class="lbl" x="1010" y="421" text-anchor="middle">M2</text><text class="sub" x="1010" y="435" text-anchor="middle">fr-dir</text>
+  <!-- M3 -->
+  <rect class="box" x="820" y="459" width="120" height="44" rx="8"/>
+  <text class="lbl" x="880" y="479" text-anchor="middle">ESC 3</text>
+  <text class="sub" x="880" y="494" text-anchor="middle">1000–2000 µs · 250 Hz</text>
+  <circle class="mt" cx="1010" cy="481" r="26"/><text class="lbl" x="1010" y="478" text-anchor="middle">M3</text><text class="sub" x="1010" y="492" text-anchor="middle">tr-dir</text>
+  <!-- M4 -->
+  <rect class="box" x="820" y="516" width="120" height="44" rx="8"/>
+  <text class="lbl" x="880" y="536" text-anchor="middle">ESC 4</text>
+  <text class="sub" x="880" y="551" text-anchor="middle">1000–2000 µs · 250 Hz</text>
+  <circle class="mt" cx="1010" cy="538" r="26"/><text class="lbl" x="1010" y="535" text-anchor="middle">M4</text><text class="sub" x="1010" y="549" text-anchor="middle">tr-esq</text>
+
+  <!-- fios de SINAL (ESP32 -> ESC) -->
+  <path class="w-sig" d="M749,367 H820"/>
+  <path class="w-sig" d="M749,417 H820"/>
+  <path class="w-sig" d="M749,467 H820"/>
+  <path class="w-sig" d="M749,517 H820"/>
+  <!-- fios ESC -> Motor (3 fases, representadas por 1 linha) -->
+  <path class="w-gnd" d="M940,367 H984"/>
+  <path class="w-gnd" d="M940,424 H984"/>
+  <path class="w-gnd" d="M940,481 H984"/>
+  <path class="w-gnd" d="M940,538 H984"/>
+  <text class="sub" x="785" y="338" style="fill:#ff9f40">sinal PWM</text>
+
+  <!-- ===================== Energia (esquerda) ===================== -->
+  <rect class="box" x="70" y="430" width="170" height="110" rx="10"/>
+  <text class="lbl" x="155" y="462" text-anchor="middle">Bateria LiPo</text>
+  <text class="sub" x="155" y="480" text-anchor="middle">3S (~11,1 V)</text>
+  <rect class="pin" x="92" y="520" width="40" height="14"/><text class="pintxt" x="112" y="531" text-anchor="middle" style="fill:#ff5d5d">V+</text>
+  <rect class="pin" x="178" y="520" width="40" height="14"/><text class="pintxt" x="198" y="531" text-anchor="middle">GND</text>
+
+  <rect class="box" x="300" y="430" width="120" height="110" rx="10"/>
+  <text class="lbl" x="360" y="478" text-anchor="middle">PDB</text>
+  <text class="sub" x="360" y="495" text-anchor="middle">distribuição</text>
+
+  <!-- bateria -> PDB -->
+  <path class="w-vp"  d="M112,520 V610 H360 V540"/>
+  <path class="w-gnd" d="M198,520 V628 H378 V540"/>
+
+  <!-- PDB -> barramento V+ e GND ate os ESCs (parte inferior) -->
+  <path class="w-vp"  d="M360,540 V650 H880 V560"/>   <!-- V+ bus -> ESCs (sobe no ESC4) -->
+  <path class="w-vp"  d="M820,367 H800 V650"/>
+  <path class="w-vp"  d="M820,424 H805 V650"/>
+  <path class="w-vp"  d="M820,481 H810 V650"/>
+  <path class="w-gnd" d="M378,540 V672 H760 V560"/>
+  <path class="w-gnd" d="M820,376 H792 V672"/>
+  <path class="w-gnd" d="M820,433 H797 V672"/>
+  <path class="w-gnd" d="M820,490 H802 V672"/>
+  <path class="w-gnd" d="M820,547 H807 V672"/>
+  <text class="sub" x="470" y="645" style="fill:#ff5d5d">V+ bateria → ESCs</text>
+  <text class="sub" x="470" y="688" style="fill:#9aa4b2">GND comum (bateria + ESCs + ESP32 + IMU)</text>
+
+  <!-- ESP32 alimentacao: USB (bancada) + GND comum -->
+  <path class="w-gnd" d="M650,578 V672"/>               <!-- ESP32 GND -> GND bus -->
+  <rect class="box" x="470" y="640" width="120" height="40" rx="8"/>
+  <text class="lbl" x="530" y="664" text-anchor="middle">USB 5V</text>
+  <path class="w-vp" d="M520,640 V578"/>                 <!-- USB 5V -> ESP32 -->
+  <text class="sub" x="380" y="618" style="fill:#8b97a7">(bancada: ESP32 pela USB; voo: BEC 5V)</text>
+
+  <!-- ===================== Wi-Fi (canto superior direito) ===================== -->
+  <rect class="box" x="980" y="60" width="170" height="120" rx="14"/>
+  <text class="lbl" x="1065" y="100" text-anchor="middle">Celular / PC</text>
+  <text class="sub" x="1065" y="120" text-anchor="middle">navegador</text>
+  <text class="sub" x="1065" y="140" text-anchor="middle">192.168.4.1</text>
+  <text class="sub" x="1065" y="158" text-anchor="middle">console index.html</text>
+  <path class="w-wifi" d="M700,360 C820,250 900,200 985,150" marker-end="url(#arrow)"/>
+  <text class="sub" x="820" y="250" style="fill:#7ee787">Wi-Fi · EQUIPE4-AP</text>
+
+  <!-- ===================== Vista de topo (quad X) ===================== -->
+  <g transform="translate(120,90)">
+    <text class="sub" x="70" y="-14" text-anchor="middle">vista de topo (X)</text>
+    <text class="sub" x="70" y="2" text-anchor="middle" style="fill:#7ee787">▲ frente</text>
+    <line x1="20" y1="40" x2="120" y2="140" stroke="#3a4456" stroke-width="6"/>
+    <line x1="120" y1="40" x2="20" y2="140" stroke="#3a4456" stroke-width="6"/>
+    <circle cx="20" cy="40" r="16" class="mt"/><text class="pintxt" x="20" y="44" text-anchor="middle">M1</text>
+    <circle cx="120" cy="40" r="16" class="mt"/><text class="pintxt" x="120" y="44" text-anchor="middle">M2</text>
+    <circle cx="120" cy="140" r="16" class="mt"/><text class="pintxt" x="120" y="144" text-anchor="middle">M3</text>
+    <circle cx="20" cy="140" r="16" class="mt"/><text class="pintxt" x="20" y="144" text-anchor="middle">M4</text>
+  </g>
+</svg>
+
+<div class="leg">
+  <span><i class="sw" style="border-top-color:#3fa7ff"></i> I2C (SDA/SCL)</span>
+  <span><i class="sw" style="border-top-color:#ff9f40"></i> sinal PWM (ESC)</span>
+  <span><i class="sw" style="border-top-color:#ff5d5d"></i> V+ (energia)</span>
+  <span><i class="sw" style="border-top-color:#9aa4b2"></i> GND comum</span>
+  <span><i class="sw" style="border-top-color:#7ee787;border-top-style:dashed"></i> Wi-Fi</span>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>Pinos (GPIO) — contrato</h3>
+    <table>
+      <tr><th>Função</th><th>GPIO</th></tr>
+      <tr><td>Motor M1 (frente-esq)</td><td>25</td></tr>
+      <tr><td>Motor M2 (frente-dir)</td><td>26</td></tr>
+      <tr><td>Motor M3 (trás-dir)</td><td>27</td></tr>
+      <tr><td>Motor M4 (trás-esq)</td><td>14</td></tr>
+      <tr><td>I2C SDA (IMU)</td><td>21</td></tr>
+      <tr><td>I2C SCL (IMU)</td><td>22</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Energia</h3>
+    <table>
+      <tr><td>Bateria</td><td>LiPo 3S (~11,1 V)</td></tr>
+      <tr><td>ESCs</td><td>V+ direto da bateria (via PDB)</td></tr>
+      <tr><td>ESP32 (bancada)</td><td>USB 5 V</td></tr>
+      <tr><td>ESP32 (voo)</td><td>BEC 5 V do ESC/PDB</td></tr>
+      <tr><td>IMU</td><td>3V3 do ESP32</td></tr>
+      <tr><td><b>GND</b></td><td><b>comum a tudo</b></td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Sinais / parâmetros</h3>
+    <table>
+      <tr><td>ESC</td><td>1000–2000 µs @ 250 Hz</td></tr>
+      <tr><td>I2C</td><td>400 kHz, IMU em 0x68</td></tr>
+      <tr><td>Controle</td><td>angle-mode, cascata 250 Hz</td></tr>
+      <tr><td>Comando</td><td>Wi-Fi (AP), sem rádio RC</td></tr>
+      <tr><td>AP</td><td>EQUIPE4-AP · 192.168.4.1</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="warn">
+  ⚠️ <b>SEM HÉLICES</b> em toda a montagem e verificação. O <b>sentido de rotação</b> de cada
+  motor (CW/CCW) e os sinais da mixagem são <b>confirmados na bancada</b> (quickstart §4/§5) —
+  por isso a vista de topo mostra só as <b>posições</b> M1–M4, não o sentido. GND deve ser
+  <b>comum</b> entre bateria, ESCs, ESP32 e IMU, senão o sinal de PWM não tem referência.
+</div>
+</div>
+</body>
+</html>

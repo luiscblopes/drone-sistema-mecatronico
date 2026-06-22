@@ -252,6 +252,7 @@ mestrado/
 
 ## Documentação de referência
 
+- [`Junção/docs/diagrama_interligacao.html`](./Junção/docs/diagrama_interligacao.html) — **diagrama de ligação completa** (ESP32 ↔ IMU, ESCs/motores, energia, Wi-Fi). Abra no navegador.
 - [`Junção/docs/ANALISE_TRES_PROJETOS.md`](./Junção/docs/ANALISE_TRES_PROJETOS.md) — comparação linha a linha dos três projetos + matriz de fidelidade.
 - [`Junção/docs/PORTE_PARA_HARDWARE_Drone-main.md`](./Junção/docs) — análise de migração original.
 - [`Junção/specs/001-firmware-juncao-voo/`](./Junção/specs/001-firmware-juncao-voo) — especificação completa (spec-kit).
